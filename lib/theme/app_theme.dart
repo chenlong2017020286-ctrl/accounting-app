@@ -10,8 +10,15 @@ class AppTheme {
   static const Color textSecondary = Color(0xFF757575);
   static const Color divider = Color(0xFFEEEEEE);
 
+  static const Color darkBg = Color(0xFF121212);
+  static const Color darkCard = Color(0xFF1E1E1E);
+  static const Color darkSurface = Color(0xFF2C2C2C);
+  static const Color darkText = Color(0xFFE0E0E0);
+  static const Color darkTextSecondary = Color(0xFF9E9E9E);
+
   static ThemeData get light => ThemeData(
         useMaterial3: true,
+        brightness: Brightness.light,
         colorSchemeSeed: primary,
         scaffoldBackgroundColor: background,
         appBarTheme: const AppBarTheme(
@@ -32,6 +39,45 @@ class AppTheme {
           backgroundColor: primary,
           foregroundColor: Colors.white,
           elevation: 4,
+        ),
+        dialogTheme: DialogThemeData(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        ),
+      );
+
+  static ThemeData get dark => ThemeData(
+        useMaterial3: true,
+        brightness: Brightness.dark,
+        colorSchemeSeed: primary,
+        scaffoldBackgroundColor: darkBg,
+        appBarTheme: const AppBarTheme(
+          elevation: 0,
+          centerTitle: true,
+          backgroundColor: darkCard,
+          foregroundColor: darkText,
+          titleTextStyle: TextStyle(
+            color: darkText, fontSize: 18, fontWeight: FontWeight.w600,
+          ),
+        ),
+        cardTheme: CardThemeData(
+          elevation: 1,
+          color: darkCard,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          clipBehavior: Clip.antiAlias,
+        ),
+        floatingActionButtonTheme: const FloatingActionButtonThemeData(
+          backgroundColor: primary,
+          foregroundColor: Colors.white,
+          elevation: 4,
+        ),
+        dialogTheme: DialogThemeData(
+          backgroundColor: darkCard,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        ),
+        textTheme: const TextTheme(
+          bodyLarge: TextStyle(color: darkText),
+          bodyMedium: TextStyle(color: darkText),
+          bodySmall: TextStyle(color: darkTextSecondary),
         ),
       );
 }

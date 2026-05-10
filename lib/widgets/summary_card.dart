@@ -6,12 +6,18 @@ class SummaryCard extends StatelessWidget {
   final double income;
   final double expense;
   final String title;
+  final double? budgetRatio;
+  final double? budgetAmount;
+  final bool? budgetExceeded;
 
   const SummaryCard({
     super.key,
     required this.income,
     required this.expense,
     required this.title,
+    this.budgetRatio,
+    this.budgetAmount,
+    this.budgetExceeded,
   });
 
   @override
@@ -46,6 +52,38 @@ class SummaryCard extends StatelessWidget {
                 _Label(icon: Icons.arrow_downward, label: '支出', amount: expense, color: AppTheme.expense),
               ],
             ),
+            if (budgetRatio != null && budgetAmount != null && budgetAmount! > 0) ...[
+              const SizedBox(height: 16),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: LinearProgressIndicator(
+                  value: budgetRatio!.clamp(0, 1),
+                  minHeight: 10,
+                  backgroundColor: Colors.grey[200],
+                  valueColor: AlwaysStoppedAnimation(
+                    budgetExceeded == true
+                        ? Colors.red
+                        : budgetRatio! > 0.8
+                            ? Colors.orange
+                            : Colors.green,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Text(
+                    budgetExceeded == true ? '已超出预算' : '预算进度',
+                    style: TextStyle(fontSize: 11, color: budgetExceeded == true ? Colors.red : AppTheme.textSecondary),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '${(budgetRatio! * 100).toStringAsFixed(0)}%',
+                    style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),

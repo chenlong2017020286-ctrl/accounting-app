@@ -39,6 +39,9 @@ dependencies:
   shared_preferences: ^2.3.4
   share_plus: ^10.1.4
   file_picker: ^8.1.7
+  local_auth: ^2.3.0
+  pdf: ^3.11.2
+  printing: ^5.14.2
 
 dev_dependencies:
   flutter_test:

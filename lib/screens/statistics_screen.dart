@@ -3,6 +3,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:intl/intl.dart';
 import '../models/transaction.dart';
 import '../services/storage_service.dart';
+import '../services/pdf_export_service.dart';
 import '../theme/app_theme.dart';
 
 class StatisticsScreen extends StatefulWidget {
@@ -16,6 +17,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   late DateTime _currentMonth;
   final _storage = StorageService.instance;
   final _fmt = NumberFormat.currency(symbol: '¥', decimalDigits: 0);
+  bool _pdfLoading = false;
 
   @override
   void initState() {
@@ -26,6 +28,17 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   void _prevMonth() => setState(() => _currentMonth = DateTime(_currentMonth.year, _currentMonth.month - 1));
   void _nextMonth() => setState(() => _currentMonth = DateTime(_currentMonth.year, _currentMonth.month + 1));
 
+  Future<void> _exportPdf() async {
+    setState(() => _pdfLoading = true);
+    try {
+      await PdfExportService.shareReport(_currentMonth.year, _currentMonth.month);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+    }
+    setState(() => _pdfLoading = false);
+  }
+
   @override
   Widget build(BuildContext context) {
     final expense = _storage.totalForMonth(_currentMonth.year, _currentMonth.month, TransactionType.expense);
@@ -34,79 +47,172 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
     final total = catData.values.fold(0.0, (a, b) => a + b);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('统计')),
-      body: Column(
-        children: [
-          // Month nav
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            color: Colors.white,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                IconButton(icon: const Icon(Icons.chevron_left), onPressed: _prevMonth),
-                Text(
-                  DateFormat('yyyy年M月').format(_currentMonth),
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                ),
-                IconButton(icon: const Icon(Icons.chevron_right), onPressed: _nextMonth),
-              ],
-            ),
+      appBar: AppBar(
+        title: const Text('统计'),
+        actions: [
+          IconButton(
+            icon: _pdfLoading
+                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.picture_as_pdf),
+            tooltip: '导出 PDF 报告',
+            onPressed: _pdfLoading ? null : _exportPdf,
           ),
-          // Summary
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            color: Colors.white,
-            child: Row(
-              children: [
-                _StatBox(label: '支出', amount: expense, color: AppTheme.expense),
-                const SizedBox(width: 16),
-                _StatBox(label: '收入', amount: income, color: AppTheme.income),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
-          // Chart
-          Expanded(
-            child: catData.isEmpty
-                ? const Center(child: Text('本月暂无支出数据', style: TextStyle(color: AppTheme.textSecondary)))
-                : Card(
-                    margin: const EdgeInsets.all(16),
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        children: [
-                          const Text('支出分类占比', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-                          const SizedBox(height: 20),
-                          Expanded(
-                            child: Row(
-                              children: [
-                                SizedBox(
-                                  width: 160,
-                                  child: PieChart(
-                                    PieChartData(
-                                      sections: _buildPieSections(catData, total),
-                                      centerSpaceRadius: 40,
-                                      sectionsSpace: 2,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 20),
-                                Expanded(
-                                  child: SingleChildScrollView(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: _buildLegend(catData, total),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            // ── Month nav + summary ──
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              color: Theme.of(context).cardColor,
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      IconButton(icon: const Icon(Icons.chevron_left), onPressed: _prevMonth),
+                      Text(DateFormat('yyyy年M月').format(_currentMonth),
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                      IconButton(icon: const Icon(Icons.chevron_right), onPressed: _nextMonth),
+                    ],
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Row(
+                      children: [
+                        _StatBox(label: '支出', amount: expense, color: AppTheme.expense),
+                        const SizedBox(width: 16),
+                        _StatBox(label: '收入', amount: income, color: AppTheme.income),
+                      ],
                     ),
                   ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // ── Monthly trend line chart ──
+            Card(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('近半年趋势', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 20),
+                    SizedBox(height: 200, child: _buildTrendChart()),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // ── Pie chart ──
+            if (total > 0)
+              Card(
+                margin: const EdgeInsets.all(16),
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    children: [
+                      const Text('支出分类占比', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 20),
+                      SizedBox(
+                        height: 300,
+                        child: Row(
+                          children: [
+                            SizedBox(
+                              width: 160,
+                              child: PieChart(
+                                PieChartData(
+                                  sections: _buildPieSections(catData, total),
+                                  centerSpaceRadius: 40,
+                                  sectionsSpace: 2,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 20),
+                            Expanded(child: SingleChildScrollView(
+                              child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: _buildLegend(catData, total)),
+                            )),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              const Card(
+                margin: EdgeInsets.all(16),
+                child: Padding(
+                  padding: EdgeInsets.all(40),
+                  child: Center(child: Text('本月暂无支出数据', style: TextStyle(color: AppTheme.textSecondary))),
+                ),
+              ),
+            const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTrendChart() {
+    final now = DateTime.now();
+    final spotsIncome = <FlSpot>[];
+    final spotsExpense = <FlSpot>[];
+
+    for (int i = 5; i >= 0; i--) {
+      final m = DateTime(now.year, now.month - i, 1);
+      final inc = _storage.totalForMonth(m.year, m.month, TransactionType.income);
+      final exp = _storage.totalForMonth(m.year, m.month, TransactionType.expense);
+      spotsIncome.add(FlSpot((5 - i).toDouble(), inc));
+      spotsExpense.add(FlSpot((5 - i).toDouble(), exp));
+    }
+
+    final maxVal = [
+      ...spotsIncome.map((s) => s.y),
+      ...spotsExpense.map((s) => s.y),
+    ].reduce((a, b) => a > b ? a : b);
+
+    return LineChart(
+      LineChartData(
+        gridData: FlGridData(show: true, horizontalInterval: maxVal > 0 ? maxVal / 4 : 1),
+        titlesData: FlTitlesData(
+          leftTitles: AxisTitles(sideTitles: SideTitles(
+            showTitles: true, reservedSize: 50,
+            getTitlesWidget: (v, _) => Text('¥${(v / 1000).toInt()}k', style: const TextStyle(fontSize: 10)),
+          )),
+          bottomTitles: AxisTitles(sideTitles: SideTitles(
+            showTitles: true, reservedSize: 28,
+            interval: 1,
+            getTitlesWidget: (v, _) {
+              final idx = v.toInt();
+              final m = DateTime(now.year, now.month - (5 - idx));
+              return Text('${m.month}月', style: const TextStyle(fontSize: 10));
+            },
+          )),
+          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        ),
+        borderData: FlBorderData(show: false),
+        lineBarsData: [
+          LineChartBarData(
+            spots: spotsIncome,
+            color: AppTheme.income,
+            barWidth: 2.5,
+            dotData: FlDotData(show: true),
+            belowBarData: BarAreaData(show: true, color: AppTheme.income.withValues(alpha: 0.1)),
+          ),
+          LineChartBarData(
+            spots: spotsExpense,
+            color: AppTheme.expense,
+            barWidth: 2.5,
+            dotData: FlDotData(show: true),
+            belowBarData: BarAreaData(show: true, color: AppTheme.expense.withValues(alpha: 0.1)),
           ),
         ],
       ),
@@ -114,7 +220,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   }
 
   List<PieChartSectionData> _buildPieSections(Map<String, double> data, double total) {
-    final colors = [
+    const colors = [
       Colors.red, Colors.blue, Colors.green, Colors.orange, Colors.purple,
       Colors.teal, Colors.pink, Colors.indigo, Colors.amber, Colors.cyan,
     ];
@@ -132,7 +238,7 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
   }
 
   List<Widget> _buildLegend(Map<String, double> data, double total) {
-    final colors = [
+    const colors = [
       Colors.red, Colors.blue, Colors.green, Colors.orange, Colors.purple,
       Colors.teal, Colors.pink, Colors.indigo, Colors.amber, Colors.cyan,
     ];
@@ -143,9 +249,8 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
         padding: const EdgeInsets.symmetric(vertical: 3),
         child: Row(
           children: [
-            Container(width: 10, height: 10, decoration: BoxDecoration(
-              color: colors[i++ % colors.length], shape: BoxShape.circle,
-            )),
+            Container(width: 10, height: 10,
+                decoration: BoxDecoration(color: colors[i++ % colors.length], shape: BoxShape.circle)),
             const SizedBox(width: 8),
             Expanded(child: Text(e.key, style: const TextStyle(fontSize: 12))),
             Text('${_fmt.format(e.value)} (${pct.toStringAsFixed(0)}%)',

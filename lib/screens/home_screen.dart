@@ -8,6 +8,7 @@ import 'add_transaction.dart';
 import 'statistics_screen.dart';
 import 'ai_input_screen.dart';
 import 'api_settings_screen.dart';
+import 'data_management_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -103,10 +104,19 @@ class _HomeScreenState extends State<HomeScreen> {
             tooltip: '统计',
             onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StatisticsScreen())),
           ),
-          IconButton(
-            icon: const Icon(Icons.settings),
-            tooltip: 'API 设置',
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ApiSettingsScreen())),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (v) {
+              if (v == 'api') {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const ApiSettingsScreen()));
+              } else if (v == 'data') {
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const DataManagementScreen()));
+              }
+            },
+            itemBuilder: (_) => [
+              const PopupMenuItem(value: 'data', child: ListTile(leading: Icon(Icons.storage), title: Text('数据管理'), dense: true)),
+              const PopupMenuItem(value: 'api', child: ListTile(leading: Icon(Icons.api), title: Text('API 设置'), dense: true)),
+            ],
           ),
         ],
       ),

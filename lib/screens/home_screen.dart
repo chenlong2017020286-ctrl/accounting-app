@@ -6,6 +6,8 @@ import '../widgets/summary_card.dart';
 import '../widgets/transaction_tile.dart';
 import 'add_transaction.dart';
 import 'statistics_screen.dart';
+import 'ai_input_screen.dart';
+import 'api_settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -31,33 +33,20 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _addSampleData() {
     final now = DateTime.now();
-    _storage.add(Transaction(
-      type: TransactionType.income, amount: 15000, category: '工资',
-      note: '5月工资', date: DateTime(now.year, now.month, 1),
-    ));
-    _storage.add(Transaction(
-      type: TransactionType.expense, amount: 35, category: '餐饮',
-      note: '午餐', date: DateTime(now.year, now.month, 2),
-    ));
-    _storage.add(Transaction(
-      type: TransactionType.expense, amount: 180, category: '交通',
-      note: '地铁卡充值', date: DateTime(now.year, now.month, 3),
-    ));
-    _storage.add(Transaction(
-      type: TransactionType.expense, amount: 1200, category: '居住',
-      note: '水电燃气', date: DateTime(now.year, now.month, 5),
-    ));
-    _storage.add(Transaction(
-      type: TransactionType.expense, amount: 299, category: '购物',
-      note: '日用品', date: DateTime(now.year, now.month, 7),
-    ));
+    for (final t in [
+      Transaction(type: TransactionType.income, amount: 15000, category: '工资', note: '5月工资', date: DateTime(now.year, now.month, 1)),
+      Transaction(type: TransactionType.expense, amount: 35, category: '餐饮', note: '午餐', date: DateTime(now.year, now.month, 2)),
+      Transaction(type: TransactionType.expense, amount: 180, category: '交通', note: '地铁卡充值', date: DateTime(now.year, now.month, 3)),
+      Transaction(type: TransactionType.expense, amount: 1200, category: '居住', note: '水电燃气', date: DateTime(now.year, now.month, 5)),
+      Transaction(type: TransactionType.expense, amount: 299, category: '购物', note: '日用品', date: DateTime(now.year, now.month, 7)),
+    ]) {
+      _storage.add(t);
+    }
     _refresh();
   }
 
   void _refresh() {
-    setState(() {
-      _transactions = _storage.sorted();
-    });
+    setState(() => _transactions = _storage.sorted());
   }
 
   Future<void> _addTransaction() async {
@@ -69,6 +58,14 @@ class _HomeScreenState extends State<HomeScreen> {
       await _storage.add(result);
       _refresh();
     }
+  }
+
+  Future<void> _aiInput() async {
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const AiInputScreen()),
+    );
+    if (result == true) _refresh();
   }
 
   Future<void> _editTransaction(Transaction t) async {
@@ -97,9 +94,19 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text('我的账本'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.auto_awesome),
+            tooltip: 'AI 智能记账',
+            onPressed: _aiInput,
+          ),
+          IconButton(
             icon: const Icon(Icons.pie_chart),
             tooltip: '统计',
             onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const StatisticsScreen())),
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings),
+            tooltip: 'API 设置',
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ApiSettingsScreen())),
           ),
         ],
       ),
@@ -107,7 +114,6 @@ class _HomeScreenState extends State<HomeScreen> {
         onRefresh: () async => _refresh(),
         child: CustomScrollView(
           slivers: [
-            // Summary
             SliverToBoxAdapter(
               child: SummaryCard(
                 income: monthIncome,
@@ -115,7 +121,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 title: DateFormat('M月结余').format(DateTime(_year, _month)),
               ),
             ),
-            // Section header
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
@@ -128,7 +133,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             ),
-            // Transaction list
             _transactions.isEmpty
                 ? const SliverFillRemaining(
                     child: Center(child: Text('还没有账单，点击 + 开始记账', style: TextStyle(color: Colors.grey))),
@@ -143,14 +147,26 @@ class _HomeScreenState extends State<HomeScreen> {
                       childCount: _transactions.length,
                     ),
                   ),
-            // Bottom padding
             const SliverToBoxAdapter(child: SizedBox(height: 80)),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _addTransaction,
-        child: const Icon(Icons.add),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FloatingActionButton.small(
+            heroTag: 'ai',
+            backgroundColor: Colors.deepPurple,
+            onPressed: _aiInput,
+            child: const Icon(Icons.auto_awesome, color: Colors.white),
+          ),
+          const SizedBox(height: 12),
+          FloatingActionButton(
+            heroTag: 'add',
+            onPressed: _addTransaction,
+            child: const Icon(Icons.add),
+          ),
+        ],
       ),
     );
   }

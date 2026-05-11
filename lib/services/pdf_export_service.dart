@@ -13,7 +13,7 @@ class PdfExportService {
   static Future<String> generateMonthlyReport(int year, int month) async {
     final txs = _storage.forMonth(year, month);
     if (txs.isEmpty) {
-      throw Exception('${year}年${month}月没有数据');
+      throw Exception('$year年$month月没有数据');
     }
 
     final income = _storage.totalForMonth(year, month, TransactionType.income);
@@ -21,7 +21,9 @@ class PdfExportService {
     final fmt = NumberFormat.currency(symbol: '¥', decimalDigits: 0);
     final dateFmt = DateFormat('yyyy/MM/dd');
 
-    final pdf = pw.Document();
+    // Load Chinese font to fix garbled text in PDF
+    final font = await PdfGoogleFonts.notoSansSCRegular();
+    final pdf = pw.Document(theme: pw.ThemeData.withFont(base: font));
 
     pdf.addPage(
       pw.MultiPage(
@@ -31,7 +33,7 @@ class PdfExportService {
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
             pw.Text('月度账单报告', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
-            pw.Text('${year}年${month}月', style: pw.TextStyle(fontSize: 14, color: PdfColors.grey600)),
+            pw.Text('$year年$month月', style: pw.TextStyle(fontSize: 14, color: PdfColors.grey600)),
             pw.SizedBox(height: 16),
             pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
@@ -62,7 +64,7 @@ class PdfExportService {
             cellHeight: 28,
             columnWidths: {0: const pw.FlexColumnWidth(3), 1: const pw.FlexColumnWidth(2), 2: const pw.FlexColumnWidth(2)},
             headers: ['分类', '金额', '占比'],
-            data: _categoryRows(expense),
+            data: _categoryRows(expense, year, month),
           ),
           pw.SizedBox(height: 24),
           pw.Header(text: '账单明细', level: 1),
@@ -85,15 +87,14 @@ class PdfExportService {
     );
 
     final dir = await getApplicationDocumentsDirectory();
-    final path = '${dir.path}/月度报告_${year}${month.toString().padLeft(2, '0')}.pdf';
+    final path = '${dir.path}/月度报告_$year${month.toString().padLeft(2, '0')}.pdf';
     final file = File(path);
     await file.writeAsBytes(await pdf.save());
     return path;
   }
 
-  static List<List<String>> _categoryRows(double total) {
-    final now = DateTime.now();
-    final cats = _storage.categorySummary(now.year, now.month, TransactionType.expense);
+  static List<List<String>> _categoryRows(double total, int year, int month) {
+    final cats = _storage.categorySummary(year, month, TransactionType.expense);
     final fmt = NumberFormat.currency(symbol: '¥', decimalDigits: 0);
     if (total == 0) return [['无', '¥0', '0%']];
     return cats.entries.map((e) => [

@@ -56,11 +56,11 @@ class RecurringTransaction {
   String get frequencyLabel {
     switch (frequency) {
       case RecurringFrequency.monthly:
-        return '每月${dayOfMonth}号';
+        return '每月$dayOfMonth号';
       case RecurringFrequency.weekly:
         return '每周';
       case RecurringFrequency.yearly:
-        return '每年${dayOfMonth}月';
+        return '每年$dayOfMonth月';
     }
   }
 

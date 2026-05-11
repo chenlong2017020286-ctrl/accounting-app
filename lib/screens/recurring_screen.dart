@@ -79,7 +79,7 @@ class _RecurringScreenState extends State<RecurringScreen> {
                       ),
                       child: Center(child: Text(t.category, style: const TextStyle(fontSize: 18))),
                     ),
-                    title: Text('${sign}${fmt.format(t.amount)}',
+                    title: Text('$sign${fmt.format(t.amount)}',
                         style: TextStyle(fontWeight: FontWeight.w600, color: color)),
                     subtitle: Text('${t.frequencyLabel} · ${t.typeLabel}',
                         style: const TextStyle(fontSize: 12)),
@@ -205,8 +205,7 @@ class _AddRecurringScreenState extends State<_AddRecurringScreen> {
             children: [
               const Text('日期：'),
               const SizedBox(width: 12),
-              SegmentedButton<int>(
-                segments: [1, 5, 10, 15, 20, 28].map((d) => ButtonSegment(value: d, label: Text('${d}号'))).toList(),
+              SegmentedButton<int>(segments: [1, 5, 10, 15, 20, 28].map((d) => ButtonSegment(value: d, label: Text('$d号'))).toList(),
                 selected: {_day},
                 onSelectionChanged: (s) => setState(() => _day = s.first),
               ),

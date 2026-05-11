@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/transaction.dart';
+import '../services/account_service.dart';
 import '../services/storage_service.dart';
 import '../services/budget_service.dart';
 import '../services/category_service.dart';
 import '../widgets/summary_card.dart';
 import '../widgets/transaction_tile.dart';
+import 'account_management_screen.dart';
 import 'add_transaction.dart';
 import 'statistics_screen.dart';
 import 'ai_input_screen.dart';
@@ -33,6 +35,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Transaction> _filtered = [];
   final _searchCtrl = TextEditingController();
   String? _filterCategory;
+  String? _filterAccountId;
   bool _showSearch = false;
 
   @override
@@ -52,12 +55,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _addSampleData() {
     final now = DateTime.now();
+    final defaultAccountId = AccountService.instance.all.isNotEmpty
+        ? AccountService.instance.all.first.id
+        : null;
     for (final t in [
-      Transaction(type: TransactionType.income, amount: 15000, category: '工资', note: '5月工资', date: DateTime(now.year, now.month, 1)),
-      Transaction(type: TransactionType.expense, amount: 35, category: '餐饮', note: '午餐', date: DateTime(now.year, now.month, 2)),
-      Transaction(type: TransactionType.expense, amount: 180, category: '交通', note: '地铁卡充值', date: DateTime(now.year, now.month, 3)),
-      Transaction(type: TransactionType.expense, amount: 1200, category: '居住', note: '水电燃气', date: DateTime(now.year, now.month, 5)),
-      Transaction(type: TransactionType.expense, amount: 299, category: '购物', note: '日用品', date: DateTime(now.year, now.month, 7)),
+      Transaction(type: TransactionType.income, amount: 15000, category: '工资', note: '5月工资', date: DateTime(now.year, now.month, 1), accountId: defaultAccountId),
+      Transaction(type: TransactionType.expense, amount: 35, category: '餐饮', note: '午餐', date: DateTime(now.year, now.month, 2), accountId: defaultAccountId),
+      Transaction(type: TransactionType.expense, amount: 180, category: '交通', note: '地铁卡充值', date: DateTime(now.year, now.month, 3), accountId: defaultAccountId),
+      Transaction(type: TransactionType.expense, amount: 1200, category: '居住', note: '水电燃气', date: DateTime(now.year, now.month, 5), accountId: defaultAccountId),
+      Transaction(type: TransactionType.expense, amount: 299, category: '购物', note: '日用品', date: DateTime(now.year, now.month, 7), accountId: defaultAccountId),
     ]) {
       _storage.add(t);
     }
@@ -75,6 +81,9 @@ class _HomeScreenState extends State<HomeScreen> {
     var list = _transactions;
     if (_filterCategory != null) {
       list = list.where((t) => t.category == _filterCategory).toList();
+    }
+    if (_filterAccountId != null) {
+      list = list.where((t) => t.accountId == _filterAccountId).toList();
     }
     final q = _searchCtrl.text.trim().toLowerCase();
     if (q.isNotEmpty) {
@@ -131,9 +140,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final monthExpense = _storage.totalForMonth(_year, _month, TransactionType.expense);
-    final monthIncome = _storage.totalForMonth(_year, _month, TransactionType.income);
+    final monthExpense = _filterAccountId != null
+        ? _storage.totalForMonthByAccount(_year, _month, TransactionType.expense, _filterAccountId!)
+        : _storage.totalForMonth(_year, _month, TransactionType.expense);
+    final monthIncome = _filterAccountId != null
+        ? _storage.totalForMonthByAccount(_year, _month, TransactionType.income, _filterAccountId!)
+        : _storage.totalForMonth(_year, _month, TransactionType.income);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final selectedAccount = _filterAccountId != null
+        ? AccountService.instance.getById(_filterAccountId!)
+        : null;
 
     return Scaffold(
       appBar: AppBar(
@@ -150,6 +166,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 case 'data': Navigator.push(context, MaterialPageRoute(builder: (_) => const DataManagementScreen()));
                 case 'api': Navigator.push(context, MaterialPageRoute(builder: (_) => const ApiSettingsScreen()));
                 case 'categories': Navigator.push(context, MaterialPageRoute(builder: (_) => const CategoryManagementScreen()));
+                case 'accounts': Navigator.push(context, MaterialPageRoute(builder: (_) => const AccountManagementScreen())).then((_) => _refresh());
                 case 'theme': widget.onToggleTheme?.call();
               }
             },
@@ -158,6 +175,7 @@ class _HomeScreenState extends State<HomeScreen> {
               const PopupMenuItem(value: 'budget', child: ListTile(leading: Icon(Icons.account_balance_wallet), title: Text('预算'))),
               const PopupMenuItem(value: 'recurring', child: ListTile(leading: Icon(Icons.repeat), title: Text('定期账单'))),
               const PopupMenuItem(value: 'categories', child: ListTile(leading: Icon(Icons.category), title: Text('分类管理'))),
+              const PopupMenuItem(value: 'accounts', child: ListTile(leading: Icon(Icons.account_balance_wallet), title: Text('账户管理'))),
               const PopupMenuItem(value: 'data', child: ListTile(leading: Icon(Icons.storage), title: Text('数据管理'))),
               const PopupMenuItem(value: 'api', child: ListTile(leading: Icon(Icons.api), title: Text('API 设置'))),
               PopupMenuItem(value: 'theme', child: ListTile(
@@ -230,10 +248,54 @@ class _HomeScreenState extends State<HomeScreen> {
               child: SummaryCard(
                 income: monthIncome,
                 expense: monthExpense,
-                title: DateFormat('M月结余').format(DateTime(_year, _month)),
-                budgetRatio: _budget.hasBudget ? _budget.usageRatio(monthExpense) : null,
-                budgetAmount: _budget.hasBudget ? _budget.monthlyBudget : null,
-                budgetExceeded: _budget.hasBudget && monthExpense > _budget.monthlyBudget,
+                title: '${DateFormat('M月').format(DateTime(_year, _month))}${selectedAccount != null ? '${selectedAccount.name} ' : ''}结余',
+                budgetRatio: _budget.hasBudget && _filterAccountId == null ? _budget.usageRatio(monthExpense) : null,
+                budgetAmount: _budget.hasBudget && _filterAccountId == null ? _budget.monthlyBudget : null,
+                budgetExceeded: _budget.hasBudget && _filterAccountId == null && monthExpense > _budget.monthlyBudget,
+              ),
+            ),
+
+            // Account filter chips
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+                child: SizedBox(
+                  height: 38,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    children: [
+                      // "全部" chip
+                      Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: ChoiceChip(
+                          label: const Text('全部账户', style: TextStyle(fontSize: 12)),
+                          selected: _filterAccountId == null,
+                          onSelected: (_) => setState(() {
+                            _filterAccountId = null;
+                            _applyFilter();
+                          }),
+                          visualDensity: VisualDensity.compact,
+                        ),
+                      ),
+                      // Account chips
+                      ...AccountService.instance.all.map((a) {
+                        final sel = a.id == _filterAccountId;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: ChoiceChip(
+                            label: Text('${a.icon} ${a.name}', style: const TextStyle(fontSize: 12)),
+                            selected: sel,
+                            onSelected: (_) => setState(() {
+                              _filterAccountId = sel ? null : a.id;
+                              _applyFilter();
+                            }),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
               ),
             ),
 

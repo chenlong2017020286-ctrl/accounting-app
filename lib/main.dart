@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'services/account_service.dart';
 import 'services/storage_service.dart';
 import 'services/api_config_service.dart';
 import 'services/budget_service.dart';
@@ -11,6 +12,7 @@ import 'theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await AccountService.instance.init();
   await StorageService.instance.init();
   await ApiConfigService.instance.init();
   await BudgetService.instance.init();

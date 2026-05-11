@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../models/transaction.dart';
+import '../services/account_service.dart';
 import '../services/category_service.dart';
+import '../widgets/account_selector.dart';
 import '../widgets/category_selector.dart';
 
 class AddTransactionScreen extends StatefulWidget {
@@ -20,6 +22,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   late TextEditingController _noteCtrl;
   late String _category;
   late DateTime _date;
+  String? _accountId;
 
   @override
   void initState() {
@@ -30,6 +33,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       _noteCtrl = TextEditingController(text: widget.existing!.note);
       _category = widget.existing!.category;
       _date = widget.existing!.date;
+      _accountId = widget.existing!.accountId;
     } else {
       _type = TransactionType.expense;
       _amountCtrl = TextEditingController();
@@ -37,6 +41,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       final defaultCats = CategoryService.instance.getByType(TransactionType.expense);
       _category = defaultCats.isNotEmpty ? defaultCats.first.name : '餐饮';
       _date = DateTime.now();
+      final accounts = AccountService.instance.all;
+      if (accounts.isNotEmpty) _accountId = accounts.first.id;
     }
   }
 
@@ -100,6 +106,15 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               type: _type,
               selected: _category,
               onSelected: (c) => setState(() => _category = c),
+            ),
+            const SizedBox(height: 20),
+
+            // Account
+            const Text('账户', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            AccountSelector(
+              selectedId: _accountId,
+              onSelected: (id) => setState(() => _accountId = id),
             ),
             const SizedBox(height: 20),
 
@@ -174,6 +189,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       category: _category,
       note: _noteCtrl.text,
       date: _date,
+      accountId: _accountId,
       createdAt: widget.existing?.createdAt,
     );
     Navigator.pop(context, t);

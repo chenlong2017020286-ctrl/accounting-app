@@ -12,6 +12,7 @@ class Transaction {
   final String note;
   final DateTime date;
   final DateTime createdAt;
+  final String? accountId;
 
   Transaction({
     String? id,
@@ -21,6 +22,7 @@ class Transaction {
     this.note = '',
     DateTime? date,
     DateTime? createdAt,
+    this.accountId,
   })  : id = id ?? _uuid.v4().substring(0, 8),
         date = date ?? DateTime.now(),
         createdAt = createdAt ?? DateTime.now();
@@ -33,6 +35,7 @@ class Transaction {
         'note': note,
         'date': date.toIso8601String(),
         'createdAt': createdAt.toIso8601String(),
+        if (accountId != null) 'accountId': accountId,
       };
 
   factory Transaction.fromJson(Map<String, dynamic> json) => Transaction(
@@ -43,6 +46,7 @@ class Transaction {
         note: json['note'] as String? ?? '',
         date: DateTime.tryParse(json['date'] as String? ?? ''),
         createdAt: DateTime.tryParse(json['createdAt'] as String? ?? ''),
+        accountId: json['accountId'] as String?,
       );
 }
 

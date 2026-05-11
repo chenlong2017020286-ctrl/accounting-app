@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import '../models/transaction.dart';
+import 'account_service.dart';
 
 class StorageService {
   static StorageService? _instance;
@@ -57,6 +58,20 @@ class StorageService {
         .fold(0.0, (sum, t) => sum + t.amount);
   }
 
+  List<Transaction> forAccount(String accountId) {
+    return _transactions.where((t) => t.accountId == accountId).toList();
+  }
+
+  double totalForMonthByAccount(int year, int month, TransactionType type, String accountId) {
+    return _transactions
+        .where((t) =>
+            t.date.year == year &&
+            t.date.month == month &&
+            t.type == type &&
+            t.accountId == accountId)
+        .fold(0.0, (sum, t) => sum + t.amount);
+  }
+
   Map<String, double> categorySummary(int year, int month, TransactionType type) {
     final map = <String, double>{};
     for (final t in _transactions) {
@@ -69,18 +84,42 @@ class StorageService {
 
   Future<void> add(Transaction t) async {
     _transactions.add(t);
+    if (t.accountId != null) {
+      final delta = t.type == TransactionType.income ? t.amount : -t.amount;
+      await AccountService.instance.adjustBalance(t.accountId!, delta);
+    }
     await _persist();
   }
 
   Future<void> update(Transaction t) async {
     final idx = _transactions.indexWhere((x) => x.id == t.id);
     if (idx >= 0) {
+      final old = _transactions[idx];
+
+      // Reverse old transaction's balance effect
+      if (old.accountId != null) {
+        final reverseDelta = old.type == TransactionType.income ? -old.amount : old.amount;
+        await AccountService.instance.adjustBalance(old.accountId!, reverseDelta);
+      }
+
       _transactions[idx] = t;
+
+      // Apply new transaction's balance effect
+      if (t.accountId != null) {
+        final delta = t.type == TransactionType.income ? t.amount : -t.amount;
+        await AccountService.instance.adjustBalance(t.accountId!, delta);
+      }
+
       await _persist();
     }
   }
 
   Future<void> delete(String id) async {
+    final t = _transactions.firstWhere((x) => x.id == id);
+    if (t.accountId != null) {
+      final reverseDelta = t.type == TransactionType.income ? -t.amount : t.amount;
+      await AccountService.instance.adjustBalance(t.accountId!, reverseDelta);
+    }
     _transactions.removeWhere((t) => t.id == id);
     await _persist();
   }

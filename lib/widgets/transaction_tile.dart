@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
 import '../models/transaction.dart';
+import '../services/storage_service.dart';
 import '../theme/app_theme.dart';
 
 class TransactionTile extends StatelessWidget {
@@ -14,6 +16,62 @@ class TransactionTile extends StatelessWidget {
     required this.onTap,
     required this.onDelete,
   });
+
+  void _showImagePreview(BuildContext context) {
+    final file = StorageService.instance.getImageFile(transaction.imagePath!);
+    if (!file.existsSync()) return;
+
+    showDialog(
+      context: context,
+      barrierColor: Colors.black,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: EdgeInsets.zero,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Image with pinch-to-zoom
+            Center(
+              child: InteractiveViewer(
+                maxScale: 5,
+                child: Image.file(
+                  file,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, _, _) => const Center(
+                    child: Text('加载失败', style: TextStyle(color: Colors.white)),
+                  ),
+                ),
+              ),
+            ),
+            // Close button
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 8,
+              right: 8,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white, size: 28),
+                onPressed: () => Navigator.pop(ctx),
+              ),
+            ),
+            // Share button
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 8,
+              left: 8,
+              child: IconButton(
+                icon: const Icon(Icons.share, color: Colors.white, size: 28),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  Share.shareXFiles(
+                    [XFile(file.path)],
+                    text: '小票 - ${transaction.category}',
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -63,10 +121,28 @@ class TransactionTile extends StatelessWidget {
           child: Center(child: Text(transaction.category, style: const TextStyle(fontSize: 20))),
         ),
         title: Text(transaction.category, style: const TextStyle(fontWeight: FontWeight.w500)),
-        subtitle: transaction.note.isNotEmpty
-            ? Text(transaction.note, style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary))
-            : Text(DateFormat('MM/dd HH:mm').format(transaction.date),
-                style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+        subtitle: Row(
+          children: [
+            Expanded(
+              child: transaction.note.isNotEmpty
+                  ? Text(transaction.note, style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary))
+                  : Text(DateFormat('MM/dd HH:mm').format(transaction.date),
+                      style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+            ),
+            if (transaction.imagePath != null)
+              GestureDetector(
+                onTap: () => _showImagePreview(context),
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: AppTheme.expense.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Icon(Icons.camera_alt, size: 16, color: AppTheme.expense.withValues(alpha: 0.7)),
+                ),
+              ),
+          ],
+        ),
         trailing: Text(
           '$sign${fmt.format(transaction.amount)}',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: color),

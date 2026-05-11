@@ -1,8 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
+import 'package:uuid/uuid.dart';
 import '../models/transaction.dart';
 import 'account_service.dart';
+
+const _uuid = Uuid();
 
 class StorageService {
   static StorageService? _instance;
@@ -16,9 +19,46 @@ class StorageService {
     return _instance!;
   }
 
+  Future<Directory> getImageDirectory() async {
+    final appDir = await getApplicationDocumentsDirectory();
+    final dir = Directory('${appDir.path}/receipts');
+    if (!await dir.exists()) {
+      await dir.create(recursive: true);
+    }
+    return dir;
+  }
+
+  /// Copies an image file from [sourcePath] into the receipts directory.
+  /// Returns the filename (relative path) stored in the transaction.
+  Future<String> saveImage(String sourcePath) async {
+    final dir = await getImageDirectory();
+    final ext = sourcePath.split('.').last.toLowerCase();
+    final filename = '${_uuid.v4()}.${ext.length <= 4 ? ext : 'jpg'}';
+    final target = File('${dir.path}/$filename');
+    await File(sourcePath).copy(target.path);
+    return filename;
+  }
+
+  /// Returns the [File] for a stored receipt image by its filename.
+  File getImageFile(String filename) {
+    // Resolve lazily — directory path is known at call time
+    return File('$_appDirPath/receipts/$filename');
+  }
+
+  /// Deletes a receipt image file by its filename.
+  Future<void> deleteImage(String filename) async {
+    final file = getImageFile(filename);
+    if (await file.exists()) {
+      await file.delete();
+    }
+  }
+
+  late String _appDirPath;
+
   Future<void> init() async {
     final dir = await getApplicationDocumentsDirectory();
-    _file = File('${dir.path}/accounting_data.json');
+    _appDirPath = dir.path;
+    _file = File('$_appDirPath/accounting_data.json');
     await load();
   }
 
@@ -119,6 +159,10 @@ class StorageService {
     if (t.accountId != null) {
       final reverseDelta = t.type == TransactionType.income ? -t.amount : t.amount;
       await AccountService.instance.adjustBalance(t.accountId!, reverseDelta);
+    }
+    // Clean up receipt image if present
+    if (t.imagePath != null) {
+      await deleteImage(t.imagePath!);
     }
     _transactions.removeWhere((t) => t.id == id);
     await _persist();

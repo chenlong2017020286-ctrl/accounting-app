@@ -1,9 +1,12 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
 import '../models/transaction.dart';
 import '../services/account_service.dart';
 import '../services/category_service.dart';
+import '../services/storage_service.dart';
 import '../widgets/account_selector.dart';
 import '../widgets/category_selector.dart';
 
@@ -23,6 +26,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   late String _category;
   late DateTime _date;
   String? _accountId;
+  String? _imagePath; // raw source path from picker, or existing filename
+  bool _isExistingImage = false; // true if _imagePath is an existing stored filename
+  final _picker = ImagePicker();
 
   @override
   void initState() {
@@ -34,6 +40,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       _category = widget.existing!.category;
       _date = widget.existing!.date;
       _accountId = widget.existing!.accountId;
+      if (widget.existing!.imagePath != null) {
+        _imagePath = widget.existing!.imagePath;
+        _isExistingImage = true;
+      }
     } else {
       _type = TransactionType.expense;
       _amountCtrl = TextEditingController();
@@ -51,6 +61,132 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     _amountCtrl.dispose();
     _noteCtrl.dispose();
     super.dispose();
+  }
+
+  Widget _buildImageSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('小票', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 8),
+        if (_imagePath != null)
+          Stack(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: _isExistingImage
+                    ? Image.file(
+                        StorageService.instance.getImageFile(_imagePath!),
+                        height: 120,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => _buildAddButton(),
+                      )
+                    : Image.file(
+                        File(_imagePath!),
+                        height: 120,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                      ),
+              ),
+              Positioned(
+                top: 4,
+                right: 4,
+                child: CircleAvatar(
+                  radius: 16,
+                  backgroundColor: Colors.black54,
+                  child: IconButton(
+                    icon: const Icon(Icons.close, size: 16, color: Colors.white),
+                    onPressed: _removeImage,
+                    padding: EdgeInsets.zero,
+                  ),
+                ),
+              ),
+            ],
+          )
+        else
+          _buildAddButton(),
+      ],
+    );
+  }
+
+  Widget _buildAddButton() {
+    return InkWell(
+      onTap: _showImagePickerOptions,
+      child: Container(
+        width: double.infinity,
+        height: 80,
+        decoration: BoxDecoration(
+          color: Colors.grey[100],
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey[300]!),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.camera_alt_outlined, color: Colors.grey[400], size: 28),
+            const SizedBox(height: 4),
+            Text('添加小票', style: TextStyle(fontSize: 13, color: Colors.grey[500])),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showImagePickerOptions() async {
+    await showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text('拍照'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickImage(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('从相册选择'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _pickImage(ImageSource.gallery);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    final xFile = await _picker.pickImage(
+      source: source,
+      maxWidth: 1920,
+      imageQuality: 85,
+    );
+    if (xFile != null) {
+      setState(() {
+        _imagePath = xFile.path;
+        _isExistingImage = false;
+      });
+    }
+  }
+
+  void _removeImage() {
+    setState(() {
+      _imagePath = null;
+      _isExistingImage = false;
+    });
   }
 
   @override
@@ -132,6 +268,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
             ),
             const SizedBox(height: 16),
 
+            // Receipt image picker
+            _buildImageSection(),
+            const SizedBox(height: 16),
+
             // Date
             InkWell(
               onTap: () async {
@@ -160,7 +300,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
               width: double.infinity,
               height: 52,
               child: FilledButton(
-                onPressed: _submit,
+                onPressed: () => _submit(),
                 style: FilledButton.styleFrom(
                   backgroundColor: _type == TransactionType.expense ? Colors.red : Colors.green,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
@@ -174,7 +314,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     );
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     final amount = double.tryParse(_amountCtrl.text);
     if (amount == null || amount <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -182,6 +322,22 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       );
       return;
     }
+
+    String? finalImagePath;
+    if (_imagePath != null) {
+      if (_isExistingImage) {
+        // Reuse existing stored image
+        finalImagePath = _imagePath;
+      } else {
+        // Copy new picked image to storage
+        try {
+          finalImagePath = await StorageService.instance.saveImage(_imagePath!);
+        } catch (_) {
+          // If image copy fails, continue without it
+        }
+      }
+    }
+
     final t = Transaction(
       id: widget.existing?.id,
       type: _type,
@@ -191,7 +347,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       date: _date,
       accountId: _accountId,
       createdAt: widget.existing?.createdAt,
+      imagePath: finalImagePath,
     );
+    if (!mounted) return;
     Navigator.pop(context, t);
   }
 }

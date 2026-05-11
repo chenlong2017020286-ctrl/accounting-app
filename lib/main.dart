@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'services/storage_service.dart';
 import 'services/api_config_service.dart';
 import 'services/budget_service.dart';
+import 'services/category_service.dart';
 import 'services/recurring_service.dart';
 import 'screens/home_screen.dart';
 import 'theme/app_theme.dart';
@@ -13,6 +14,7 @@ void main() async {
   await StorageService.instance.init();
   await ApiConfigService.instance.init();
   await BudgetService.instance.init();
+  await CategoryService.instance.init();
   await RecurringService.instance.init();
   await RecurringService.instance.generateDue();
 

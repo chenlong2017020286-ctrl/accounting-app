@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../models/transaction.dart';
+import '../services/category_service.dart';
 import '../widgets/category_selector.dart';
 
 class AddTransactionScreen extends StatefulWidget {
@@ -33,7 +34,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
       _type = TransactionType.expense;
       _amountCtrl = TextEditingController();
       _noteCtrl = TextEditingController();
-      _category = '餐饮';
+      final defaultCats = CategoryService.instance.getByType(TransactionType.expense);
+      _category = defaultCats.isNotEmpty ? defaultCats.first.name : '餐饮';
       _date = DateTime.now();
     }
   }

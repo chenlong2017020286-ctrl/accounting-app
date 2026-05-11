@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../models/recurring_transaction.dart';
 import '../models/transaction.dart';
+import '../services/category_service.dart';
 import '../services/recurring_service.dart';
 import '../theme/app_theme.dart';
 
@@ -120,7 +121,8 @@ class _AddRecurringScreenState extends State<_AddRecurringScreen> {
   TransactionType _type = TransactionType.expense;
   late TextEditingController _amountCtrl;
   late TextEditingController _noteCtrl;
-  String _category = '餐饮';
+  String _category = '';
+
   RecurringFrequency _freq = RecurringFrequency.monthly;
   int _day = 1;
 
@@ -129,6 +131,8 @@ class _AddRecurringScreenState extends State<_AddRecurringScreen> {
     super.initState();
     _amountCtrl = TextEditingController();
     _noteCtrl = TextEditingController();
+    final defaultCats = CategoryService.instance.getByType(TransactionType.expense);
+    _category = defaultCats.isNotEmpty ? defaultCats.first.name : '餐饮';
   }
 
   @override
@@ -170,7 +174,7 @@ class _AddRecurringScreenState extends State<_AddRecurringScreen> {
           const SizedBox(height: 8),
           Wrap(
             spacing: 8, runSpacing: 8,
-            children: CategoryData.forType(_type).map((c) {
+            children: CategoryService.instance.getByType(_type).map((c) {
               final sel = c.name == _category;
               return ChoiceChip(
                 label: Text('${c.icon} ${c.name}'),

@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '../models/transaction.dart';
 import '../services/storage_service.dart';
 import '../services/budget_service.dart';
+import '../services/category_service.dart';
 import '../widgets/summary_card.dart';
 import '../widgets/transaction_tile.dart';
 import 'add_transaction.dart';
@@ -12,6 +13,7 @@ import 'api_settings_screen.dart';
 import 'data_management_screen.dart';
 import 'budget_screen.dart';
 import 'recurring_screen.dart';
+import 'category_management_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback? onToggleTheme;
@@ -147,6 +149,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 case 'recurring': Navigator.push(context, MaterialPageRoute(builder: (_) => const RecurringScreen()));
                 case 'data': Navigator.push(context, MaterialPageRoute(builder: (_) => const DataManagementScreen()));
                 case 'api': Navigator.push(context, MaterialPageRoute(builder: (_) => const ApiSettingsScreen()));
+                case 'categories': Navigator.push(context, MaterialPageRoute(builder: (_) => const CategoryManagementScreen()));
                 case 'theme': widget.onToggleTheme?.call();
               }
             },
@@ -154,6 +157,7 @@ class _HomeScreenState extends State<HomeScreen> {
               const PopupMenuItem(value: 'stats', child: ListTile(leading: Icon(Icons.pie_chart), title: Text('统计'))),
               const PopupMenuItem(value: 'budget', child: ListTile(leading: Icon(Icons.account_balance_wallet), title: Text('预算'))),
               const PopupMenuItem(value: 'recurring', child: ListTile(leading: Icon(Icons.repeat), title: Text('定期账单'))),
+              const PopupMenuItem(value: 'categories', child: ListTile(leading: Icon(Icons.category), title: Text('分类管理'))),
               const PopupMenuItem(value: 'data', child: ListTile(leading: Icon(Icons.storage), title: Text('数据管理'))),
               const PopupMenuItem(value: 'api', child: ListTile(leading: Icon(Icons.api), title: Text('API 设置'))),
               PopupMenuItem(value: 'theme', child: ListTile(
@@ -198,7 +202,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             height: 36,
                             child: ListView(
                               scrollDirection: Axis.horizontal,
-                              children: ['全部', ...CategoryData.expenseCategories.map((c) => c.name)].map((name) {
+                              children: ['全部', ...CategoryService.instance.getByType(TransactionType.expense).map((c) => c.name)].map((name) {
                                 final sel = name == _filterCategory || (name == '全部' && _filterCategory == null);
                                 return Padding(
                                   padding: const EdgeInsets.only(right: 6),

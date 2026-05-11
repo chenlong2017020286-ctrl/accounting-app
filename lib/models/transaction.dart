@@ -52,33 +52,4 @@ class CategoryData {
   final TransactionType type;
 
   const CategoryData(this.name, this.icon, this.type);
-
-  static const List<CategoryData> expenseCategories = [
-    CategoryData('餐饮', '🍜', TransactionType.expense),
-    CategoryData('交通', '🚇', TransactionType.expense),
-    CategoryData('购物', '🛍️', TransactionType.expense),
-    CategoryData('居住', '🏠', TransactionType.expense),
-    CategoryData('娱乐', '🎮', TransactionType.expense),
-    CategoryData('通讯', '📱', TransactionType.expense),
-    CategoryData('医疗', '💊', TransactionType.expense),
-    CategoryData('教育', '📚', TransactionType.expense),
-    CategoryData('服饰', '👕', TransactionType.expense),
-    CategoryData('社交', '🤝', TransactionType.expense),
-    CategoryData('运动', '🏃', TransactionType.expense),
-    CategoryData('旅行', '✈️', TransactionType.expense),
-    CategoryData('宠物', '🐾', TransactionType.expense),
-    CategoryData('其他支出', '📦', TransactionType.expense),
-  ];
-
-  static const List<CategoryData> incomeCategories = [
-    CategoryData('工资', '💰', TransactionType.income),
-    CategoryData('奖金', '🎯', TransactionType.income),
-    CategoryData('理财', '📈', TransactionType.income),
-    CategoryData('兼职', '💼', TransactionType.income),
-    CategoryData('红包', '🧧', TransactionType.income),
-    CategoryData('其他收入', '📥', TransactionType.income),
-  ];
-
-  static List<CategoryData> forType(TransactionType type) =>
-      type == TransactionType.expense ? expenseCategories : incomeCategories;
 }

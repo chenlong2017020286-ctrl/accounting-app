@@ -25,9 +25,21 @@ class _ApiSettingsScreenState extends State<ApiSettingsScreen> {
   @override
   void initState() {
     super.initState();
-    _endpointCtrl = TextEditingController(text: _config.endpoint);
-    _keyCtrl = TextEditingController(text: _config.apiKey);
-    _modelCtrl = TextEditingController(text: _config.model);
+    _endpointCtrl = TextEditingController();
+    _keyCtrl = TextEditingController();
+    _modelCtrl = TextEditingController();
+    _loadConfig();
+  }
+
+  Future<void> _loadConfig() async {
+    final endpoint = await _config.endpoint;
+    final apiKey = await _config.apiKey;
+    final model = await _config.model;
+    setState(() {
+      _endpointCtrl.text = endpoint;
+      _keyCtrl.text = apiKey;
+      _modelCtrl.text = model;
+    });
   }
 
   @override

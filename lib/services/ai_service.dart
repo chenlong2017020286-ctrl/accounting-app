@@ -49,19 +49,19 @@ class AiService {
 ''';
 
   static Future<ParseResult> parse(String text) async {
-    if (!_config.isConfigured) {
+    if (!await _config.isConfigured) {
       return ParseResult(transactions: [], error: '请先在设置中配置 API');
     }
 
     try {
       final resp = await http.post(
-        Uri.parse('${_config.endpoint}/chat/completions'),
+        Uri.parse('${await _config.endpoint}/chat/completions'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer ${_config.apiKey}',
+          'Authorization': 'Bearer ${await _config.apiKey}',
         },
         body: json.encode({
-          'model': _config.model,
+          'model': await _config.model,
           'messages': [
             {'role': 'system', 'content': _systemPrompt},
             {'role': 'user', 'content': '当前日期为 ${DateTime.now().year} 年 ${DateTime.now().month} 月 ${DateTime.now().day} 日\n\n$text'},

@@ -1,8 +1,8 @@
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class ApiConfigService {
   static ApiConfigService? _instance;
-  late SharedPreferences _prefs;
+  late FlutterSecureStorage _storage;
 
   ApiConfigService._();
 
@@ -12,16 +12,42 @@ class ApiConfigService {
   }
 
   Future<void> init() async {
-    _prefs = await SharedPreferences.getInstance();
+    _storage = const FlutterSecureStorage();
   }
 
-  String get endpoint => _prefs.getString('api_endpoint') ?? 'https://api.deepseek.com';
-  String get apiKey => _prefs.getString('api_key') ?? '';
-  String get model => _prefs.getString('api_model') ?? 'deepseek-chat';
+  String? _endpoint;
+  String? _apiKey;
+  String? _model;
 
-  bool get isConfigured => apiKey.isNotEmpty;
+  Future<String> get endpoint async {
+    _endpoint ??= await _storage.read(key: 'api_endpoint');
+    return _endpoint ?? 'https://api.deepseek.com';
+  }
 
-  Future<void> setEndpoint(String v) => _prefs.setString('api_endpoint', v);
-  Future<void> setApiKey(String v) => _prefs.setString('api_key', v);
-  Future<void> setModel(String v) => _prefs.setString('api_model', v);
+  Future<String> get apiKey async {
+    _apiKey ??= await _storage.read(key: 'api_key');
+    return _apiKey ?? '';
+  }
+
+  Future<String> get model async {
+    _model ??= await _storage.read(key: 'api_model');
+    return _model ?? 'deepseek-chat';
+  }
+
+  Future<bool> get isConfigured async => (await apiKey).isNotEmpty;
+
+  Future<void> setEndpoint(String v) async {
+    _endpoint = v;
+    await _storage.write(key: 'api_endpoint', value: v);
+  }
+
+  Future<void> setApiKey(String v) async {
+    _apiKey = v;
+    await _storage.write(key: 'api_key', value: v);
+  }
+
+  Future<void> setModel(String v) async {
+    _model = v;
+    await _storage.write(key: 'api_model', value: v);
+  }
 }
